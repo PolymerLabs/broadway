@@ -35,6 +35,9 @@ const $worker = Symbol('worker');
 const $workerUrl = Symbol('workerUrl');
 const $onGlobalMessage = Symbol('onGlobalMessage');
 
+const establishMessageBusChannelRe =
+    new RegExp(`^${MessageBusProtocol.ESTABLISH_MESSAGE_BUS_CHANNEL}`);
+
 class MessageBusClient {
   [$worker]: Worker|null;
   [$workerUrl]: string;
@@ -45,12 +48,18 @@ class MessageBusClient {
     this[$workerUrl] = workerUrl;
 
     this[$onGlobalMessage] = async (event: MessageEvent) => {
-      const worker = await this[$getWorker]();
+      if (event.data && establishMessageBusChannelRe.test(event.data)) {
+        const workerUrl = event.data.replace(establishMessageBusChannelRe, '');
 
-      if (event.data === MessageBusProtocol.ESTABLISH_MESSAGE_BUS_CHANNEL) {
+        if (workerUrl !== this[$workerUrl]) {
+          return;
+        }
+
+        const worker = await this[$getWorker]();
         const sourcePort = event.ports[0];
 
         if (sourcePort == null) {
+          throw new Error('No source port provided');
           return;
         }
 
@@ -111,8 +120,7 @@ class MessageBusClient {
  */
 class FrameMessageBusClient extends MessageBusClient {
   async connect(): Promise<MessagePort> {
-    logger.log('### Frame message bus client');
-
+    logger.log('Connecting as iframed sub-view...');
     const messageChannel = new MessageChannel();
     const {port1, port2} = messageChannel;
 
@@ -121,14 +129,15 @@ class FrameMessageBusClient extends MessageBusClient {
       // TODO: Verify that event type is
       // MessageBusProtocol.CONNECTION_ACCEPTED
       const onMessage = () => {
-        logger.log('##### Got port from parent frame');
+        logger.log('Got port from parent frame');
         port1.removeEventListener('message', onMessage);
         resolve(port1);
       };
 
-      logger.log('#### Requesting new channel from parent frame');
-      self.parent.postMessage(
-          MessageBusProtocol.ESTABLISH_MESSAGE_BUS_CHANNEL, '*', [port2]);
+      const message = `${MessageBusProtocol.ESTABLISH_MESSAGE_BUS_CHANNEL}${
+          this[$workerUrl]}`;
+      logger.log('Requesting new channel from parent frame');
+      self.parent.postMessage(message, '*', [port2]);
 
       port1.addEventListener('message', onMessage);
       port1.start();
