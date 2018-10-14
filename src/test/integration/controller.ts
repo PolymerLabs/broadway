@@ -14,7 +14,10 @@
 
 import {Action} from '../../action.js';
 import {Controller} from '../../controller.js';
+import {logger} from '../../logger.js';
 import {TestAction} from './test-action.js';
+
+logger.enabled = false;
 
 export const URL = '/test/build/controller.js';
 

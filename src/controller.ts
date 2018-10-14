@@ -14,6 +14,7 @@
 
 import {Action} from './action.js';
 import {ControllerMessage} from './controller/message.js';
+import {logger} from './logger.js';
 import {MessageBus} from './message-bus.js';
 import {WorkerMessageBus} from './message-bus/worker.js';
 import {Message} from './message.js';
@@ -55,7 +56,8 @@ export class Controller {
   }
 
   constructor() {
-    this[$messageBus].subscribe(message => this[$onMessage](message));
+    this[$messageBus].subscribe(
+        (message, connection) => this[$onMessage](message, connection));
   }
 
   subscribe(handler: ActionHandler): Subscription {
@@ -69,21 +71,22 @@ export class Controller {
   }
 
   updateState(newState: any): void {
-    console.log('Notifying of new state', newState);
+    logger.log('Notifying of new state', newState);
     this[$state] = newState;
     this[$messageBus].post(
         new Message(ControllerMessage.STATE_CHANGED, newState));
   }
 
-  protected[$onMessage](message: Message): void {
-    console.log('Got message in controller!', message);
+  protected[$onMessage](message: Message, connection: any): void {
+    logger.log('Got message in controller!', message, connection);
     switch (message.type) {
       case ControllerMessage.VIEW_CONNECTED:
-        console.log('View connected to controller!');
+        logger.log('View connected to controller!');
         if (this[$state] != null) {
-          console.log('Notifying of initial state...');
+          logger.log('Notifying of initial state...');
           this[$messageBus].post(
-              new Message(ControllerMessage.STATE_INITIALIZED, this[$state]));
+              new Message(ControllerMessage.STATE_INITIALIZED, this[$state]),
+              connection);
         }
         break;
       case ControllerMessage.ACTION_DISPATCHED:
@@ -91,7 +94,7 @@ export class Controller {
         this[$dispatch](action);
         break;
       default:
-        console.warn(`Unrecognized message in controller: ${message.type}`);
+        logger.warn(`Unrecognized message in controller: ${message.type}`);
         break;
     }
   }

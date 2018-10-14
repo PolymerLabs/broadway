@@ -19,18 +19,25 @@ import {Subscription} from '../../subscription.js';
 import {URL} from './controller.js';
 
 export class MajorView {
-  adapter: Adapter;
+  adapter: Adapter = new Adapter(URL);
+  minorViewIframes: HTMLIFrameElement[] = [];
+  stateNotificationCount: number = 0;
+  state: any = null;
   controllerConnects: Promise<any>;
-  minorViewIframes: HTMLIFrameElement[];
+  stateSubscription: Subscription;
 
   constructor() {
-    this.adapter = new Adapter(URL);
     this.controllerConnects = new Promise((resolve) => {
-      this.adapter.subscribe(state => {
+      const subscription = this.adapter.subscribe(state => {
         resolve(state);
+        subscription.unsubscribe();
       });
     });
-    this.minorViewIframes = [];
+
+    this.stateSubscription = this.adapter.subscribe(state => {
+      this.state = state;
+      this.stateNotificationCount++;
+    });
   }
 
   async addMinorView() {
@@ -52,6 +59,7 @@ export class MajorView {
   }
 
   async cleanup() {
+    this.stateSubscription.unsubscribe();
     this.minorViewIframes.forEach(iframe => {
       iframe.src = 'about:blank';
       document.body.removeChild(iframe);

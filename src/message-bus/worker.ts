@@ -12,6 +12,7 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+import {logger} from '../logger.js';
 import {$onMessage, MessageBus} from '../message-bus.js';
 import {MessageBusProtocol} from '../message-bus/protocol.js';
 import {Message} from '../message.js';
@@ -32,11 +33,11 @@ export class WorkerMessageBus extends MessageBus {
     super();
 
     self.addEventListener('message', event => {
-      console.log('Worker global message:', event.data);
+      logger.log('Worker global message:', event.data);
       if (event.data &&
           event.data === MessageBusProtocol.ESTABLISH_MESSAGE_BUS_CHANNEL &&
           event.ports[0] != null) {
-        console.log('Establishing channel');
+        logger.log('Establishing channel');
         this[$acceptConnection](event.ports[0]);
       }
     });
@@ -46,17 +47,17 @@ export class WorkerMessageBus extends MessageBus {
     this[$connections].add(port);
 
     try {
-      console.log('Relaying accepted connection to view');
+      logger.log('Relaying accepted connection to view');
       port.onmessage = (message: MessageEvent) => this[$onMessage](message);
       port.postMessage({type: MessageBusProtocol.CONNECTION_ACCEPTED});
     } catch (error) {
-      console.error(error);
+      logger.error(error);
     }
   }
 
   async post(message: Message|null, connection: MessagePort|null = null):
       Promise<void> {
-    console.log('worker message bus post', message, connection);
+    logger.log('worker message bus post', message, connection);
     if (message == null) {
       return;
     }

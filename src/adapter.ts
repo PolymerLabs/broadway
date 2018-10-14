@@ -14,6 +14,7 @@
 
 import {Action} from './action.js';
 import {ControllerMessage} from './controller/message.js';
+import {logger} from './logger.js';
 import {MessageBus} from './message-bus.js';
 import {ViewMessageBus} from './message-bus/view.js';
 import {Message} from './message.js';
@@ -47,15 +48,15 @@ export class Adapter {
   constructor(controllerUrl: string) {
     this[$messageBus] = new ViewMessageBus(controllerUrl);
     this[$subscription] = this[$messageBus].subscribe(message => {
-      console.log('Got message from controller', message.type);
+      logger.log('Got message from controller', message.type);
 
       switch (message.type) {
         case ControllerMessage.STATE_INITIALIZED:
-          console.log('Initial state message');
+          logger.log('Initial state message');
           this[$onStateChanged](message.data);
           break;
         case ControllerMessage.STATE_CHANGED:
-          console.log('State changed message');
+          logger.log('State changed message');
           this[$onStateChanged](message.data);
           break;
       }
@@ -77,7 +78,7 @@ export class Adapter {
   }
 
   protected[$onStateChanged](newState: any) {
-    console.log('New state:', newState);
+    logger.log('New state:', newState);
     this[$stateChangeHandlers].forEach(handler => handler(newState));
   }
 }

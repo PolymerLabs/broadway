@@ -12,6 +12,7 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+import {logger} from '../logger.js';
 import {MessageBusProtocol} from '../message-bus/protocol.js';
 
 
@@ -81,7 +82,7 @@ class MessageBusClient {
     return await new Promise<MessagePort>(resolve => {
       // TODO: Verify that event type is MessageBusProtocol.CONNECTION_ACCEPTED
       const onMessage = () => {
-        console.log('MessageBusClient got initial message on channel');
+        logger.log('MessageBusClient got initial message on channel');
         port1.removeEventListener('message', onMessage);
         resolve(port1);
       };
@@ -110,7 +111,7 @@ class MessageBusClient {
  */
 class FrameMessageBusClient extends MessageBusClient {
   async connect(): Promise<MessagePort> {
-    console.log('### Frame message bus client');
+    logger.log('### Frame message bus client');
 
     const messageChannel = new MessageChannel();
     const {port1, port2} = messageChannel;
@@ -120,12 +121,12 @@ class FrameMessageBusClient extends MessageBusClient {
       // TODO: Verify that event type is
       // MessageBusProtocol.CONNECTION_ACCEPTED
       const onMessage = () => {
-        console.log('##### Got port from parent frame');
+        logger.log('##### Got port from parent frame');
         port1.removeEventListener('message', onMessage);
         resolve(port1);
       };
 
-      console.log('#### Requesting new channel from parent frame');
+      logger.log('#### Requesting new channel from parent frame');
       self.parent.postMessage(
           MessageBusProtocol.ESTABLISH_MESSAGE_BUS_CHANNEL, '*', [port2]);
 
@@ -158,8 +159,8 @@ export const getMessageBusClient = (workerUrl: string): MessageBusClient => {
   const fullWorkerUrl = urlObject.toString();
 
   if (!messageBusClients.has(fullWorkerUrl)) {
-    console.log(`Creating new message bus client for ${fullWorkerUrl}!`);
-    console.log(`Primary frame? ${isPrimaryFrame}`);
+    logger.log(`Creating new message bus client for ${fullWorkerUrl}!`);
+    logger.log(`Primary frame? ${isPrimaryFrame}`);
     const messageBusClient: MessageBusClient = isPrimaryFrame ?
         new MessageBusClient(workerUrl) :
         new FrameMessageBusClient(workerUrl);
@@ -181,7 +182,7 @@ export const dismissMessageBusClient =
   const fullWorkerUrl = urlObject.toString();
 
   if (messageBusClients.has(fullWorkerUrl)) {
-    console.log(`Dismissing message bus client for ${fullWorkerUrl}`);
+    logger.log(`Dismissing message bus client for ${fullWorkerUrl}`);
     const messageBusClient = messageBusClients.get(fullWorkerUrl)!;
     messageBusClients.delete(fullWorkerUrl);
     await messageBusClient[$dismiss]();

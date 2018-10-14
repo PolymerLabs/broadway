@@ -16,6 +16,11 @@ import {MajorView} from './integration/major-view.js';
 
 const expect = chai.expect;
 
+const STATE_PROPAGATION_WAIT_TIME: number = 100;
+
+const timePasses = (ms: number) =>
+    new Promise(resolve => setTimeout(resolve, ms));
+
 suite('Broadway Integration Tests', () => {
   let view: MajorView;
 
@@ -39,4 +44,23 @@ suite('Broadway Integration Tests', () => {
   test('multiple major and minor views', async () => {
     await Promise.all([view.addMinorView(), view.addMinorView()]);
   });
+
+  test('initial state for connected view is only offered once', async () => {
+    await view.controllerConnects;
+    await timePasses(STATE_PROPAGATION_WAIT_TIME);
+
+    expect(view.stateNotificationCount).to.be.equal(1);
+  });
+
+  test(
+      'first view receives only one initial state and one updated state',
+      async () => {
+        await view.controllerConnects;
+        expect(view.stateNotificationCount).to.be.equal(1);
+        await Promise.all([view.addMinorView()]);
+        expect(view.stateNotificationCount).to.be.equal(2);
+        await timePasses(STATE_PROPAGATION_WAIT_TIME);
+
+        expect(view.stateNotificationCount).to.be.equal(2);
+      });
 });

@@ -12,10 +12,11 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
+import {logger} from './logger.js';
 import {Message} from './message.js';
 import {Subscription} from './subscription.js';
 
-export type MessageHandler = (message: Message) => void;
+export type MessageHandler = (message: Message, connection?: any) => void;
 
 
 /**
@@ -28,10 +29,10 @@ export const $onMessage = Symbol('onMessage');
 export abstract class MessageBus {
   protected[$handlers]: Set<MessageHandler> = new Set<MessageHandler>();
 
-  abstract async post(message: Message|null): Promise<void>;
+  abstract async post(message: Message|null, connection?: any): Promise<void>;
 
   subscribe(handler: MessageHandler): Subscription {
-    console.log('Adding subscription', self);
+    logger.log('Adding subscription', self);
     this[$handlers].add(handler);
 
     return {
@@ -42,16 +43,16 @@ export abstract class MessageBus {
   }
 
   protected[$onMessage](event: MessageEvent) {
-    console.log('MessageEvent handler invoked', event);
+    logger.log('MessageEvent handler invoked', event);
     const message = Message.fromMessageEvent(event);
 
     if (message == null) {
       return;
     }
 
-    console.log('Invoking message bus subscribers');
+    logger.log('Invoking message bus subscribers');
     this[$handlers].forEach(handler => {
-      handler(message);
+      handler(message, event.currentTarget);
     });
   }
 }
