@@ -13,6 +13,8 @@
  */
 
 import {Adapter} from '../../adapter.js';
+import {Channel} from '../../channel.js';
+import {ChannelEvent} from '../../channel/event.js';
 import {dismissMessageBusClient} from '../../message-bus/client.js';
 import {Subscription} from '../../subscription.js';
 
@@ -25,6 +27,8 @@ export class MajorView {
   state: any = null;
   controllerConnects: Promise<any>;
   stateSubscription: Subscription;
+  pingChannel: Channel;
+  receivedPong: Promise<any>;
 
   constructor() {
     this.controllerConnects = new Promise((resolve) => {
@@ -38,6 +42,19 @@ export class MajorView {
       this.state = state;
       this.stateNotificationCount++;
     });
+
+    this.pingChannel = this.adapter.joinChannel('/ping');
+
+    this.receivedPong = new Promise((resolve) => {
+      const subscription = this.pingChannel.subscribe((event: ChannelEvent) => {
+        if (event.type === 'pong') {
+          resolve();
+          subscription.unsubscribe();
+        }
+      });
+    });
+
+    this.pingChannel.dispatch({type: 'ping'});
   }
 
   async addMinorView() {

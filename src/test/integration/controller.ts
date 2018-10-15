@@ -13,8 +13,11 @@
  */
 
 import {Action} from '../../action.js';
+import {Channel} from '../../channel.js';
+import {ChannelEvent} from '../../channel/event.js';
 import {Controller} from '../../controller.js';
 import {logger} from '../../logger.js';
+
 import {TestAction} from './test-action.js';
 
 logger.enabled = false;
@@ -36,6 +39,8 @@ const testReducer = (state: any, action: Action) => {
 
 
 class TestController extends Controller {
+  pingChannel: Channel;
+
   static get initialState() {
     return {value: 0, minorViewCount: 0};
   }
@@ -50,6 +55,14 @@ class TestController extends Controller {
 
     // Set initial state
     this.updateState(TestController.initialState);
+
+    this.pingChannel = this.joinChannel('/ping');
+    this.pingChannel.subscribe((event: ChannelEvent) => {
+      console.log('Got ping!');
+      if (event.type === 'ping') {
+        this.pingChannel.dispatch({type: 'pong'});
+      }
+    });
   }
 }
 

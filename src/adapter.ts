@@ -13,6 +13,8 @@
  */
 
 import {Action} from './action.js';
+import {ChannelEvent} from './channel/event.js';
+import {$onChannelEvent, $propagateChannelEvent, ChannelParticipant} from './channel/participant.js';
 import {ControllerMessage} from './controller/message.js';
 import {logger} from './logger.js';
 import {MessageBus} from './message-bus.js';
@@ -38,7 +40,7 @@ const $subscription = Symbol('subscription');
 
 export const $actions = Symbol('actions');
 
-export class Adapter {
+export class Adapter extends ChannelParticipant {
   protected[$stateChangeHandlers]: Set<StateChangeHandler> =
       new Set<StateChangeHandler>();
 
@@ -46,6 +48,7 @@ export class Adapter {
   protected[$subscription]: Subscription;
 
   constructor(controllerUrl: string) {
+    super();
     this[$messageBus] = new ViewMessageBus(controllerUrl);
     this[$subscription] = this[$messageBus].subscribe(message => {
       logger.log('Got message from controller', message.type);
@@ -59,10 +62,17 @@ export class Adapter {
           logger.log('State changed message');
           this[$onStateChanged](message.data);
           break;
+        case ControllerMessage.CHANNEL_EVENT:
+          logger.log('Received channel event');
+          this[$onChannelEvent](message.data.channel, message.data.event);
       }
     });
     this[$messageBus].post(new Message(ControllerMessage.VIEW_CONNECTED));
     this[$stateChangeHandlers] = new Set();
+  }
+
+  protected[$propagateChannelEvent](name: string, event: ChannelEvent): void {
+    this[$messageBus].post(Message.fromChannelEvent(name, event));
   }
 
   dispatch(action: Action): void {

@@ -13,6 +13,7 @@
  */
 
 import {Action} from './action.js';
+import {ChannelEvent} from './channel/event.js';
 import {ControllerMessage} from './controller/message.js';
 
 
@@ -45,6 +46,14 @@ export class Message {
     if (event.data != null && event.data.type != null) {
       const {type, data} = event.data;
       return new Message(type, data);
+    }
+
+    return null;
+  }
+
+  static fromChannelEvent(channel: string, event: ChannelEvent) {
+    if (channel != null && event != null && event.type != null) {
+      return new Message(ControllerMessage.CHANNEL_EVENT, {channel, event});
     }
 
     return null;

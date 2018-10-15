@@ -13,6 +13,8 @@
  */
 
 import {Action} from './action.js';
+import {ChannelEvent} from './channel/event.js';
+import {$onChannelEvent, $propagateChannelEvent, ChannelParticipant} from './channel/participant.js';
 import {ControllerMessage} from './controller/message.js';
 import {logger} from './logger.js';
 import {MessageBus} from './message-bus.js';
@@ -46,7 +48,7 @@ const $state = Symbol('state');
 const $dispatch = Symbol('dispatch');
 const $actionHandlers = Symbol('actionHandlers');
 
-export class Controller {
+export class Controller extends ChannelParticipant {
   protected[$messageBus]: MessageBus = new WorkerMessageBus();
   protected[$actionHandlers]: Set<ActionHandler> = new Set<ActionHandler>();
   protected[$state]: any = null;
@@ -56,6 +58,7 @@ export class Controller {
   }
 
   constructor() {
+    super();
     this[$messageBus].subscribe(
         (message, connection) => this[$onMessage](message, connection));
   }
@@ -93,6 +96,11 @@ export class Controller {
         const action = message.data;
         this[$dispatch](action);
         break;
+      case ControllerMessage.CHANNEL_EVENT:
+        logger.log('Received channel event');
+        const {channel, event} = message.data;
+        this[$onChannelEvent](channel, event);
+        break;
       default:
         logger.warn(`Unrecognized message in controller: ${message.type}`);
         break;
@@ -101,5 +109,10 @@ export class Controller {
 
   protected async[$dispatch](action: Action): Promise<void> {
     this[$actionHandlers].forEach(handler => handler(action));
+  }
+
+  protected[$propagateChannelEvent](channel: string, event: ChannelEvent):
+      void {
+    this[$messageBus].post(Message.fromChannelEvent(channel, event));
   }
 }

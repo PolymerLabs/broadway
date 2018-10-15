@@ -63,4 +63,8 @@ suite('Broadway Integration Tests', () => {
 
         expect(view.stateNotificationCount).to.be.equal(2);
       });
+
+  test('channel communication basically works', async () => {
+    await view.receivedPong;
+  });
 });

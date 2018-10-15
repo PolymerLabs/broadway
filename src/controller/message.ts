@@ -17,4 +17,5 @@ export const ControllerMessage = {
   STATE_INITIALIZED: 'state-initialized',
   STATE_CHANGED: 'state-changed',
   ACTION_DISPATCHED: 'action-dispatched',
+  CHANNEL_EVENT: 'channel-event'
 };
