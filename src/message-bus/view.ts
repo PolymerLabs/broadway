@@ -49,7 +49,7 @@ export class ViewMessageBus extends MessageBus {
         port!.addEventListener('message', event => this[$onMessage](event));
       }
 
-      logger.log('Connected!', messageBusClient.constructor.name);
+      logger.log('Connected via', messageBusClient.constructor.name);
     }
 
     return this[$portPromise];
@@ -64,8 +64,7 @@ export class ViewMessageBus extends MessageBus {
     const port = await this[$connect]();
 
     if (port == null) {
-      logger.error('Failed to connect to controller');
-      return;
+      throw new Error('Failed to connect to controller');
     }
 
     logger.log('Posting message', message);

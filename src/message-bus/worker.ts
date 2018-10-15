@@ -51,7 +51,8 @@ export class WorkerMessageBus extends MessageBus {
       port.onmessage = (message: MessageEvent) => this[$onMessage](message);
       port.postMessage({type: MessageBusProtocol.CONNECTION_ACCEPTED});
     } catch (error) {
-      logger.error(error);
+      logger.warn('Unable to accept new connection');
+      throw error;
     }
   }
 

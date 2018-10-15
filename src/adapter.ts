@@ -37,6 +37,7 @@ const $stateChangeHandlers = Symbol('stateChangeHandlers');
 const $onStateChanged = Symbol('onStateChanged');
 const $messageBus = Symbol('messageBus');
 const $subscription = Symbol('subscription');
+const $latestState = Symbol('latest-state');
 
 export const $actions = Symbol('actions');
 
@@ -46,6 +47,7 @@ export class Adapter extends ChannelParticipant {
 
   protected[$messageBus]: MessageBus;
   protected[$subscription]: Subscription;
+  protected[$latestState]: any = null;
 
   constructor(controllerUrl: string) {
     super();
@@ -62,6 +64,9 @@ export class Adapter extends ChannelParticipant {
           logger.log('State changed message');
           this[$onStateChanged](message.data);
           break;
+        // NOTE(cdata): These are instantaneous events and generally should only
+        // be used for sharing highly ephemeral state. For more details, read
+        // comments in the ChannelParticipant and Channel modules.
         case ControllerMessage.CHANNEL_EVENT:
           logger.log('Received channel event');
           this[$onChannelEvent](message.data.channel, message.data.event);
@@ -81,6 +86,11 @@ export class Adapter extends ChannelParticipant {
 
   subscribe(stateChangeHandler: StateChangeHandler) {
     this[$stateChangeHandlers].add(stateChangeHandler);
+
+    // Announce state if we already received it:
+    if (this[$latestState] != null) {
+      stateChangeHandler(this[$latestState]);
+    }
 
     return {
       unsubscribe: () => this[$stateChangeHandlers].delete(stateChangeHandler)

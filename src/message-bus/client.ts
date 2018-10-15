@@ -34,6 +34,7 @@ const $dismiss = Symbol('dismiss');
 const $worker = Symbol('worker');
 const $workerUrl = Symbol('workerUrl');
 const $onGlobalMessage = Symbol('onGlobalMessage');
+const $shouldHandleMessage = Symbol('shouldHandleMessage');
 
 const establishMessageBusChannelRe =
     new RegExp(`^${MessageBusProtocol.ESTABLISH_MESSAGE_BUS_CHANNEL}`);
@@ -41,31 +42,27 @@ const establishMessageBusChannelRe =
 class MessageBusClient {
   [$worker]: Worker|null;
   [$workerUrl]: string;
-  [$onGlobalMessage]: (event: MessageEvent) => Promise<void>;
+  [$onGlobalMessage]: (event: MessageEvent) => void;
 
   constructor(workerUrl: string) {
     this[$worker] = null;
     this[$workerUrl] = workerUrl;
 
-    this[$onGlobalMessage] = async (event: MessageEvent) => {
-      if (event.data && establishMessageBusChannelRe.test(event.data)) {
-        const workerUrl = event.data.replace(establishMessageBusChannelRe, '');
-
-        if (workerUrl !== this[$workerUrl]) {
-          return;
-        }
-
-        const worker = await this[$getWorker]();
-        const sourcePort = event.ports[0];
-
-        if (sourcePort == null) {
-          throw new Error('No source port provided');
-          return;
-        }
-
-        worker.postMessage(
-            MessageBusProtocol.ESTABLISH_MESSAGE_BUS_CHANNEL, [sourcePort]);
+    this[$onGlobalMessage] = (event: MessageEvent) => {
+      if (!this[$shouldHandleMessage](event)) {
+        return;
       }
+
+      const worker = this[$getWorker]();
+      const sourcePort = event.ports[0];
+
+      if (sourcePort == null) {
+        throw new Error('No source port provided');
+        return;
+      }
+
+      worker.postMessage(
+          MessageBusProtocol.ESTABLISH_MESSAGE_BUS_CHANNEL, [sourcePort]);
     };
 
     // Listen for global message events in case a child frame wants to
@@ -73,12 +70,22 @@ class MessageBusClient {
     self.addEventListener('message', this[$onGlobalMessage]);
   }
 
-  protected async[$getWorker](): Promise<Worker> {
+  protected[$getWorker](): Worker {
     if (this[$worker] == null) {
       this[$worker] = new Worker(this[$workerUrl]);
     }
 
     return this[$worker]!;
+  }
+
+  protected[$shouldHandleMessage](event: MessageEvent): boolean {
+    if (!event.data || !establishMessageBusChannelRe.test(event.data)) {
+      return false;
+    }
+
+    const workerUrl = event.data.replace(establishMessageBusChannelRe, '');
+
+    return workerUrl === this[$workerUrl];
   }
 
   async connect(): Promise<MessagePort> {
@@ -106,8 +113,10 @@ class MessageBusClient {
 
   async[$dismiss](): Promise<void> {
     self.removeEventListener('message', this[$onGlobalMessage]);
-    const worker = await this[$getWorker]();
-    worker.terminate();
+    if (this[$worker] != null) {
+      this[$worker]!.terminate();
+      this[$worker] = null;
+    }
   }
 }
 
@@ -154,20 +163,25 @@ class FrameMessageBusClient extends MessageBusClient {
  * In order to abstract which client is used, and whether the client is created
  * or retrieved from cache, adapters access clients through this the
  * exported `getMessageBusClient` helper.
+ *
+ * For testing purposes, sometimes the top frame will be inadvertently nested
+ * within an iframe created by the test harness. In scenarios like this, it is
+ * possible to designate a frame as the top frame by appending
+ * `__primary_frame__` to the query parameters of its URL.
  */
 const primaryFrameRe: RegExp = /__primary_frame__/;
 const messageBusClients: Map<string, MessageBusClient> =
     new Map<string, MessageBusClient>();
 
 export const getMessageBusClient = (workerUrl: string): MessageBusClient => {
-  const isPrimaryFrame: boolean = self.top === self ||
-      (!!self.location && !!self.location.search &&
-       primaryFrameRe.test(self.location.search));
-
   const urlObject = new URL(workerUrl, self.location.toString());
   const fullWorkerUrl = urlObject.toString();
 
   if (!messageBusClients.has(fullWorkerUrl)) {
+    const isPrimaryFrame: boolean = self.top === self ||
+        (!!self.location && !!self.location.search &&
+         primaryFrameRe.test(self.location.search));
+
     logger.log(`Creating new message bus client for ${fullWorkerUrl}!`);
     logger.log(`Primary frame? ${isPrimaryFrame}`);
     const messageBusClient: MessageBusClient = isPrimaryFrame ?
