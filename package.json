@@ -1,0 +1,28 @@
+{
+  "name": "@polymer/broadway",
+  "version": "0.0.1",
+  "description": "",
+  "main": "lib/adapter.js",
+  "author": "The Polymer Authors",
+  "license": "BSD-3-Clause",
+  "files": [
+    "lib"
+  ],
+  "devDependencies": {
+    "@types/chai": "^4.0.1",
+    "@types/mocha": "^5.2.4",
+    "rollup": "^0.64.1",
+    "tslint": "^5.11.0",
+    "typescript": "^3.1.1",
+    "mocha": "^5.2.0",
+    "chai": "^4.1.2",
+    "wct-browser-legacy": "^1.0.1",
+    "web-component-tester": "^6.8.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "lint": "tslint --project ./",
+    "prepare": "npm run build",
+    "test": "npm run build && npm run lint && rollup -c ./test/rollup.config.js && wct"
+  }
+}
